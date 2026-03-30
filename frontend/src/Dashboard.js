@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Navbar from "./Navbar";
 import { toast } from "react-toastify";
 
@@ -29,6 +29,8 @@ function Dashboard() {
   const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
 
+  const [file, setFile] = useState(null);
+
   const [issues, setIssues] = useState([]);
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterPriority, setFilterPriority] = useState("ALL");
@@ -37,36 +39,63 @@ function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [editId, setEditId] = useState(null);
 
+  const [logs, setLogs] = useState([]);
+
+  const [selectedIssueId, setSelectedIssueId] = useState(null);
+  const [commentText, setCommentText] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const issuesPerPage = 5;
+
+  const [darkMode, setDarkMode] = useState(false);
+
   const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
+  const username = localStorage.getItem("username");
+
+  const handleFile = (e) => {
+      setFile(e.target.files[0]);
+  };
+
+  const openComments = (id) => {
+    setSelectedIssueId(id);
+  };
 
   // ✅ CREATE
   const createIssue = async () => {
+    const formData = new FormData();
+
+    formData.append("title", title);
+    formData.append("description", description);
+    formData.append("priority", "HIGH");
+    formData.append("status", "OPEN");
+    formData.append("assignedTo", assignedTo);
+
+    if (file) {
+      formData.append("file", file);
+    }
+
     await fetch("http://localhost:9090/issues", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "Authorization": "Bearer " + token
       },
-      body: JSON.stringify({
-        title,
-        description,
-        priority: "HIGH",
-        status: "OPEN",
-        assignedTo
-      })
-    }
-    );
+      body: formData
+    });
+
     toast.success("Issue Created");
+    setLogs(prev => [...prev, "Created new issue: " + title]);
 
     setTitle("");
     setDescription("");
     setAssignedTo("");
+    setFile(null);
 
-    loadIssues(); // auto refresh
+    loadIssues();
   };
 
   // ✅ LOAD
-  const loadIssues = async () => {
+  const loadIssues = useCallback(async () => {
     setLoading(true);
 
     const res = await fetch("http://localhost:9090/issues", {
@@ -83,7 +112,17 @@ function Dashboard() {
     else setIssues([]);
 
     setLoading(false);
-  };
+  }, [token]);
+
+  useEffect(() => {
+      loadIssues();
+
+      const interval = setInterval(() => {
+        loadIssues();
+      }, 10000);
+
+      return () => clearInterval(interval);
+    }, [loadIssues]);
 
   // ✅ DELETE
   const deleteIssue = async (id) => {
@@ -93,6 +132,7 @@ function Dashboard() {
     });
 
     toast.success("Issue Deleted");
+    setLogs(prev => [...prev, "Deleted issue ID: " + id]);
 
     loadIssues();
   };
@@ -109,9 +149,27 @@ function Dashboard() {
     });
 
     toast.success("Issue Updated");
+    setLogs(prev => [...prev, "Updated issue ID: " + issue.id]);
 
     setEditId(null);
     loadIssues();
+  };
+
+  const exportCSV = () => {
+    const headers = ["ID", "Title", "Status", "Priority"];
+
+    const rows = issues.map(i =>
+      [i.id, i.title, i.status, i.priority].join(",")
+    );
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const link = document.createElement("a");
+
+    link.href = URL.createObjectURL(blob);
+    link.download = "issues.csv";
+    link.click();
   };
 
   // ✅ FILTER + SEARCH LOGIC
@@ -119,8 +177,14 @@ function Dashboard() {
     .filter(i => filterStatus === "ALL" || i.status === filterStatus)
     .filter(i => filterPriority === "ALL" || i.priority === filterPriority)
     .filter(i =>
-      i.title.toLowerCase().includes(search.toLowerCase())
+      i.title.toLowerCase().includes(search.toLowerCase()) ||
+      i.description.toLowerCase().includes(search.toLowerCase())
     );
+
+    const indexOfLast = currentPage * issuesPerPage;
+    const indexOfFirst = indexOfLast - issuesPerPage;
+
+    const currentIssues = filteredIssues.slice(indexOfFirst, indexOfLast);
 
     // 📊 STATUS DATA
     const statusData = {
@@ -162,6 +226,44 @@ function Dashboard() {
       ]
     };
 
+    const userDataMap = {};
+
+    issues.forEach(i => {
+      const user = i.assignedTo || "Unassigned";
+      userDataMap[user] = (userDataMap[user] || 0) + 1;
+    });
+
+    const issuesPerUserData = {
+      labels: Object.keys(userDataMap),
+      datasets: [
+        {
+          label: "Issues per User",
+          data: Object.values(userDataMap),
+          backgroundColor: "rgba(54, 162, 235, 0.7)"
+        }
+      ]
+    };
+
+    const dateMap = {};
+
+    issues.forEach(i => {
+      if (i.createdAt) {
+        const date = new Date(i.createdAt).toLocaleDateString();
+        dateMap[date] = (dateMap[date] || 0) + 1;
+      }
+    });
+
+    const issuesPerDayData = {
+      labels: Object.keys(dateMap),
+      datasets: [
+        {
+          label: "Issues per Day",
+          data: Object.values(dateMap),
+          backgroundColor: "rgba(255, 99, 132, 0.7)"
+        }
+      ]
+    };
+
     const chartOptions = {
       responsive: true,
       plugins: {
@@ -181,9 +283,18 @@ function Dashboard() {
     };
 
   return (
-    <div className="bg-light min-vh-100">
+    <div className={darkMode ? "bg-dark text-white min-vh-100" : "bg-light min-vh-100"}>
 
       <Navbar />
+
+      <div className="container py-2">
+        <button
+          className="btn btn-outline-secondary mb-3"
+          onClick={() => setDarkMode(!darkMode)}
+        >
+          {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
+        </button>
+      </div>
 
       <div className="container py-4">
 
@@ -211,6 +322,47 @@ function Dashboard() {
             </div>
           </div>
 
+          <div className="col-md-4">
+            <div className="p-4 rounded-4 shadow bg-dark text-white">
+              <h6>Completion Rate</h6>
+              <h2>
+                {issues.length === 0
+                  ? "0%"
+                  : Math.round(
+                      (issues.filter(i => i.status === "CLOSED").length / issues.length) * 100
+                    ) + "%"}
+              </h2>
+            </div>
+          </div>
+
+        </div>
+
+        <div className="row mb-4">
+
+          {/* HIGH PRIORITY */}
+          <div className="col-md-4">
+            <div className="p-4 rounded-4 shadow bg-warning text-dark">
+              <h6>High Priority Issues</h6>
+              <h2>{issues.filter(i => i.priority === "HIGH").length}</h2>
+            </div>
+          </div>
+
+          {/* MEDIUM PRIORITY */}
+          <div className="col-md-4">
+            <div className="p-4 rounded-4 shadow bg-info text-white">
+              <h6>Medium Priority</h6>
+              <h2>{issues.filter(i => i.priority === "MEDIUM").length}</h2>
+            </div>
+          </div>
+
+          {/* ASSIGNED */}
+          <div className="col-md-4">
+            <div className="p-4 rounded-4 shadow bg-secondary text-white">
+              <h6>Assigned Issues</h6>
+              <h2>{issues.filter(i => i.assignedTo).length}</h2>
+            </div>
+          </div>
+
         </div>
 
         <div className="row mb-4">
@@ -229,6 +381,24 @@ function Dashboard() {
             </div>
           </div>
 
+        </div>
+
+        <div className="row mb-4">
+          <div className="col-md-12">
+            <div className="card shadow p-3 border-0">
+              <h5 className="text-center mb-3">Issues per User</h5>
+              <Bar data={issuesPerUserData} options={chartOptions} />
+            </div>
+          </div>
+        </div>
+
+        <div className="row mb-4">
+          <div className="col-md-12">
+            <div className="card shadow p-3 border-0">
+              <h5 className="text-center mb-3">Issues per Day</h5>
+              <Bar data={issuesPerDayData} options={chartOptions} />
+            </div>
+          </div>
         </div>
 
         {/* 🔍 SEARCH */}
@@ -278,12 +448,21 @@ function Dashboard() {
             onChange={(e) => setDescription(e.target.value)}
           />
 
+          {role === "ADMIN" && (
+            <input
+              className="form-control mb-3 shadow-sm"
+              placeholder="Assign To"
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
+            />
+          )}
+
           <input
+            type="file"
             className="form-control mb-3 shadow-sm"
-            placeholder="Assign To"
-            value={assignedTo}
-            onChange={(e) => setAssignedTo(e.target.value)}
+            onChange={handleFile}
           />
+
 
           <button className="btn btn-primary rounded-pill" onClick={createIssue}>
             ➕ Create Issue
@@ -292,6 +471,13 @@ function Dashboard() {
 
         <button className="btn btn-success mb-3 rounded-pill shadow-sm" onClick={loadIssues}>
           🔄 Load Issues
+        </button>
+
+        <button
+          className="btn btn-dark mb-3 ms-2 rounded-pill shadow-sm"
+          onClick={exportCSV}
+        >
+          ⬇ Export CSV
         </button>
 
         {/* ⏳ LOADING */}
@@ -316,12 +502,13 @@ function Dashboard() {
                   <th>Status</th>
                   <th>Date</th>
                   <th>Assigned</th>
+                  <th>Attachment</th>
                   <th>Action</th>
                 </tr>
               </thead>
 
               <tbody>
-                {filteredIssues.map((issue) => (
+                {currentIssues.map((issue) => (
                   <tr key={issue.id}>
 
                     <td>{issue.id}</td>
@@ -346,7 +533,13 @@ function Dashboard() {
                     <td>{issue.description}</td>
 
                     <td>
-                      <span className="badge bg-danger px-3 py-2">
+                      <span className={`badge px-3 py-2 ${
+                        issue.priority === "HIGH"
+                          ? "bg-danger"
+                          : issue.priority === "MEDIUM"
+                          ? "bg-warning text-dark"
+                          : "bg-secondary"
+                      }`}>
                         {issue.priority}
                       </span>
                     </td>
@@ -376,6 +569,24 @@ function Dashboard() {
                     <td>{issue.assignedTo || "Unassigned"}</td>
 
                     <td>
+                      {issue.fileUrl ? (
+                        <a href={issue.fileUrl} target="_blank" rel="noreferrer">
+                          📎 View
+                        </a>
+                      ) : (
+                        "No File"
+                      )}
+                    </td>
+
+                    <td>
+
+                      <button
+                        className="btn btn-info btn-sm me-2"
+                        onClick={() => openComments(issue.id)}
+                      >
+                        💬
+                      </button>
+
                       {editId === issue.id ? (
                         <>
                           <button
@@ -411,6 +622,26 @@ function Dashboard() {
                       )}
                     </td>
 
+                    <td>
+                      { (role === "ADMIN" || issue.assignedTo === username) && (
+                        <button
+                          className="btn btn-warning btn-sm me-2"
+                          onClick={() => setEditId(issue.id)}
+                        >
+                          ✏️
+                        </button>
+                      )}
+
+                      {role === "ADMIN" && (
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => deleteIssue(issue.id)}
+                        >
+                          🗑
+                        </button>
+                      )}
+                    </td>
+
                   </tr>
                 ))}
               </tbody>
@@ -418,6 +649,64 @@ function Dashboard() {
             </table>
           </div>
         )}
+
+        <div className="d-flex justify-content-center mt-3">
+          <button
+            className="btn btn-secondary me-2"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(prev => prev - 1)}
+          >
+            Prev
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            disabled={indexOfLast >= filteredIssues.length}
+            onClick={() => setCurrentPage(prev => prev + 1)}
+          >
+            Next
+          </button>
+        </div>
+
+        {selectedIssueId && (
+          <div className="card shadow p-4 position-fixed top-50 start-50 translate-middle bg-white" style={{ width: "400px", zIndex: 1000 }}>
+
+            <h5>Comments (Issue ID: {selectedIssueId})</h5>
+
+            {/* Comment Input */}
+            <input
+              className="form-control mb-2"
+              placeholder="Write a comment..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+            />
+
+            <button className="btn btn-primary mb-2">
+              Add Comment
+            </button>
+
+            {/* Close */}
+            <button
+              className="btn btn-secondary"
+              onClick={() => setSelectedIssueId(null)}
+            >
+              Close
+            </button>
+
+          </div>
+        )}
+
+        <div className="card p-3 mt-4 shadow">
+          <h5>Activity Logs</h5>
+
+          {logs.length === 0 ? (
+            <p>No activity yet</p>
+          ) : (
+            logs.map((log, index) => (
+              <p key={index}>• {log}</p>
+            ))
+          )}
+        </div>
 
       </div>
     </div>
