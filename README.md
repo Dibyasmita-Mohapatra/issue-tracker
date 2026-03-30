@@ -1,76 +1,104 @@
 # 🐞 Issue Tracker System
 
-A full-stack **Issue Tracking Web Application** built using **React, Spring Boot, and MySQL**.
-This application helps users create, manage, and track issues efficiently with a modern UI and secure backend.
+A full-stack Issue Tracking Web Application built using **React, Spring Boot, and MySQL**.
+This application helps users create, manage, and track issues efficiently with a modern UI, analytics dashboard, and secure backend.
 
 ---
 
-## 🚀 Features
+# 🚀 Features
 
-### 🔐 Authentication
+## 🔐 Authentication
 
 * Secure Login using JWT Authentication
 * Token-based session management
+* Role-based access (Admin/User)
 
-### 📊 Dashboard
+---
+
+## 📊 Dashboard
 
 * Total Issues count
 * Open vs Closed Issues tracking
-* Interactive charts (status & priority)
+* Completion Rate (%)
+* High / Medium / Low Priority analytics
+* Issues assigned per user
+* Issues created per day
+* Interactive charts using Chart.js
+* Real-time auto-refresh (every 10 seconds)
 
-### 🧾 Issue Management
+---
+
+## 🧾 Issue Management
 
 * Create new issues
 * Edit existing issues
 * Delete issues
 * Assign issues to users
-
-### 🎯 Filters & Controls
-
-* Filter issues by status (Open / Closed)
-* Change issue status via dropdown
-* Priority labels (High / Medium / Low)
-
-### 📅 Additional Features
-
-* Date tracking (issue creation date)
-* Real-time updates after actions
-* Toast notifications for better UX
+* Update issue status (Open / Closed)
+* Upload and attach files to issues
+* View uploaded files via link
 
 ---
 
-## 🛠️ Tech Stack
+## 🎯 Filters & Controls
 
-### 💻 Frontend
+* Filter by status (Open / Closed / All)
+* Filter by priority (High / Medium / Low)
+* Search issues by title & description
+* Pagination for better data handling
+
+---
+
+## 💬 Comments System
+
+* Add comments to issues
+* View all comments per issue
+* Real-time comment updates
+
+---
+
+## 📅 Additional Features
+
+* Activity Logs tracking user actions
+* Toast notifications for better UX
+* Date tracking (issue creation date)
+* Dark Mode 🌙 / Light Mode ☀ toggle
+* Responsive and modern UI
+
+---
+
+# 🛠️ Tech Stack
+
+## 💻 Frontend
 
 * React.js
 * Bootstrap
 * Chart.js
 * React Toastify
 
-### ⚙️ Backend
+## ⚙️ Backend
 
 * Spring Boot
 * Spring Security
 * JWT Authentication
 * JPA / Hibernate
 
-### 🗄️ Database
+## 🗄️ Database
 
 * MySQL
 
 ---
 
-## 📁 Project Structure
+# 📁 Project Structure
 
-```bash
+```
 issue-tracker/
 ├── Backend/                  # Spring Boot Backend
 │   ├── src/
 │   ├── pom.xml
 │   └── Dockerfile
 │
-├── frontend/  # React Frontend
+├── frontend/                 # React Frontend
 │   ├── src/
 │   └── package.json
 │
@@ -79,9 +107,9 @@ issue-tracker/
 
 ---
 
-## ▶️ Run Project Locally
+# ▶️ Run Project Locally
 
-### 🔹 Backend
+## 🔹 Backend
 
 ```bash
 cd Backend
@@ -89,14 +117,11 @@ mvn spring-boot:run
 ```
 
 Runs on:
-
-```
-http://localhost:9090
-```
+👉 http://localhost:9090
 
 ---
 
-### 🔹 Frontend
+## 🔹 Frontend
 
 ```bash
 cd frontend
@@ -105,50 +130,47 @@ npm start
 ```
 
 Runs on:
-
-```
-http://localhost:3000
-```
+👉 http://localhost:3000
 
 ---
 
-## 🔑 Default Login
+# 🔑 Default Login
 
-```
-Username: admin
-Password: 1234
-```
+* **Username:** admin
+* **Password:** 1234
 
 ---
 
-## 📊 Charts Included
+# 📊 Charts Included
 
 * Issues by Status (Open vs Closed)
 * Issues by Priority (High / Medium / Low)
+* Issues per User
+* Issues per Day
+* Completion Rate (%)
 
 ---
 
-## 💡 Future Enhancements
+# 💡 Future Enhancements
 
-* Role-based access (Admin/User)
-* Search functionality
-* Pagination
 * Email notifications
-* Dark mode
+* Advanced analytics dashboard
+* Role-based permissions (Admin/User) improvements
+* WebSocket real-time updates
+* Export to Excel / PDF
+* Cloud deployment (AWS / Vercel / Docker)
 
 ---
 
-## 👩‍💻 Author
+# 👩‍💻 Author
 
 **Dibyasmita Mohapatra**
 
 ---
 
-## ⭐ Support
+# ⭐ Support
 
 If you like this project:
 
-* ⭐ Star this repository
-* 📢 Share with others
-
----
+⭐ Star this repository
+📢 Share with others
